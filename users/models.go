@@ -15,8 +15,8 @@ import (
 // HINT: If you want to split null and "", you should use *string instead of string.
 type UserModel struct {
 	ID           uint    `gorm:"primaryKey"`
-	Username     string  `gorm:"column:username"`
-	Email        string  `gorm:"column:email;uniqueIndex"`
+	Username     string  `gorm:"column:username;size:255"`
+	Email        string  `gorm:"column:email;size:255;uniqueIndex"`
 	Bio          string  `gorm:"column:bio;size:1024"`
 	Image        *string `gorm:"column:image"`
 	PasswordHash string  `gorm:"column:password;not null"`

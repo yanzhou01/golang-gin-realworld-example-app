@@ -10,7 +10,7 @@ import (
 
 type ArticleModel struct {
 	gorm.Model
-	Slug        string `gorm:"uniqueIndex"`
+	Slug        string `gorm:"uniqueIndex;size:255"`
 	Title       string
 	Description string `gorm:"size:2048"`
 	Body        string `gorm:"size:2048"`
@@ -38,7 +38,7 @@ type FavoriteModel struct {
 
 type TagModel struct {
 	gorm.Model
-	Tag           string         `gorm:"uniqueIndex"`
+	Tag           string         `gorm:"uniqueIndex;size:100"`
 	ArticleModels []ArticleModel `gorm:"many2many:article_tags;"`
 }
 

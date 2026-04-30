@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -47,14 +48,19 @@ func ensureDir(filePath string) error {
 
 // Opening a database and save the reference to `Database` struct.
 func Init() *gorm.DB {
-	dbPath := GetDBPath()
+	var db *gorm.DB
+	var err error
 
-	// Ensure the directory exists
-	if err := ensureDir(dbPath); err != nil {
-		fmt.Println("db err: (Init - create dir) ", err)
+	if dsn := os.Getenv("DB_DSN"); dsn != "" {
+		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	} else {
+		dbPath := GetDBPath()
+		if err2 := ensureDir(dbPath); err2 != nil {
+			fmt.Println("db err: (Init - create dir) ", err2)
+		}
+		db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	}
 
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		fmt.Println("db err: (Init) ", err)
 	}
