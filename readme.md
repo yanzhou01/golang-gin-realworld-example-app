@@ -76,86 +76,152 @@ go tool cover -func=coverage.out
 
 # Getting started
 
-## Install Golang
+## 快速启动（推荐）：Docker Compose 全栈
 
-Make sure you have Go 1.21 or higher installed.
+> 前提：安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，无需本地 Go 环境。
 
-https://golang.org/doc/install
-
-## Environment Config
-
-Environment variables can be set directly in your shell or via a `.env` file (requires a tool like `source` or `direnv`).
-
-Available environment variables:
 ```bash
-PORT=8080                     # Server port (default: 8080)
-GIN_MODE=debug               # Gin mode: debug or release
-DB_PATH=./data/gorm.db       # SQLite database path (default: ./data/gorm.db)
-TEST_DB_PATH=./data/test.db  # Optional: SQLite database path used for tests
+# 1. 启动 MySQL + 后端 API + 前端 + 自动写入 demo 数据（一条命令）
+docker compose up --build -d
+
+# 2. 打开浏览器
+open http://localhost:3000        # 前端界面
+# 后端 API: http://localhost:8080/api
 ```
 
-Example usage:
+启动顺序由 Docker Compose 自动编排：
+1. **MySQL 8.0** 启动并通过健康检查
+2. **backend**（Go/Gin）连接 MySQL，GORM AutoMigrate 建表
+3. **seed**（一次性容器）调用 API 写入 demo 数据后自动退出
+4. **frontend**（React/nginx）提供 Web 界面
+
+### Demo 数据
+
+| 数据类型 | 数量 |
+|---------|------|
+| 用户 | 8 |
+| 文章 | 30 |
+| 标签 | 42 |
+| 评论 | 20 |
+| 收藏 | 29 |
+| 关注关系 | 15 |
+
+登录账号：`alice@example.com` / `bobby@example.com` 等，密码统一 `password123`
+
+### Docker Compose 常用命令
+
 ```bash
-# Option 1: Set environment variables directly
-export PORT=3000
-export DB_PATH=./data/myapp.db
+# 查看容器状态
+docker compose ps
+
+# 查看 seed 执行日志
+docker compose logs seed
+
+# 查看后端日志
+docker compose logs -f backend
+
+# 停止并清除数据卷（重置数据）
+docker compose down -v
+
+# 停止但保留数据
+docker compose stop
+```
+
+---
+
+## 本地开发（需要 Go 1.25+）
+
+### 安装依赖
+
+```bash
+go mod download
+```
+
+### 方式一：SQLite（零依赖，适合快速调试）
+
+```bash
 go run hello.go
-
-# Option 2: Inline with command
-PORT=3000 go run hello.go
+# 服务启动在 http://localhost:8080/api
+# 数据库文件：./data/gorm.db（自动创建）
 ```
 
-See `.env.example` for a complete template.
+### 方式二：连接 MySQL（需先启动 mysql 容器）
 
-
-## Install Dependencies
-From the project root, run:
-```
-go build ./...
-go test ./...
-go mod tidy
-```
-
-## Run the Server
 ```bash
-# Using default port 8080
-go run hello.go
+# 只启动 MySQL
+docker compose up -d mysql
 
-# Using custom port
-PORT=3000 go run hello.go
+# 设置 DB_DSN 环境变量后启动服务
+DB_DSN="conduit:conduit@tcp(localhost:3306)/realworld?parseTime=true&charset=utf8mb4&loc=Local" \
+  go run hello.go
 ```
 
-## Testing
-From the project root, run:
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | `8080` | 监听端口 |
+| `GIN_MODE` | `debug` | `debug` 或 `release` |
+| `DB_DSN` | 空 | MySQL DSN，设置后使用 MySQL，否则使用 SQLite |
+| `DB_PATH` | `./data/gorm.db` | SQLite 文件路径（仅 `DB_DSN` 未设置时生效） |
+
+### 写入 demo 数据（本地后端运行时）
+
+```bash
+go run ./seed/
+# 默认连接 http://localhost:8080/api
+# 自定义地址：go run ./seed/ http://your-api-host/api
 ```
+
+---
+
+## 单元测试
+
+```bash
+# 运行所有测试（使用 SQLite，无需外部依赖）
 go test ./...
-```
-or
-```
+
+# 带覆盖率
 go test ./... -cover
-```
-or
-```
-go test -v ./... -cover
-```
-depending on whether you want to see test coverage and how verbose the output you want.
 
-## Todo
-- More elegance config
-- ProtoBuf support
-- Code structure optimize (I think some place can use interface)
-- Continuous integration (done)
-
-## Test Coverage
-
-Current test coverage (2026):
-- **Total**: 89.2%
-- **articles**: 92.1%
-- **users**: 99.5%
-- **common**: 85.7%
-
-Run coverage report:
-```bash
+# 生成覆盖率报告
 go test -coverprofile=coverage.out ./...
 go tool cover -func=coverage.out
+```
+
+### 测试覆盖率
+
+| Package | Coverage |
+|---------|----------|
+| `articles` | 93.4% |
+| `users` | 99.5% |
+| `common` | 85.7% |
+| **Total** | **90.0%** |
+
+---
+
+## MySQL → TiDB 迁移练习
+
+本项目设计为 MySQL → TiDB 迁移的练手 baseline：
+
+```bash
+# 修改 docker-compose.yml 中 backend 的 DB_DSN，
+# 将 mysql:3306 改为 TiDB 地址，重启 backend 即可：
+DB_DSN="user:pass@tcp(tidb-host:4000)/realworld?parseTime=true&charset=utf8mb4&loc=Local"
+
+# 用单元测试验证功能正确性
+go test ./...
+
+# 重新运行 seed 验证端到端流程
+docker compose restart seed
+docker compose logs seed
+```
+
+---
+
+## API 测试（Postman / Newman）
+
+```bash
+# 运行官方 RealWorld API 测试集合
+bash scripts/run-api-tests.sh
 ```
