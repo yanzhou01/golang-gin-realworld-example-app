@@ -1,59 +1,57 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-# Ensure tmp directory exists
-mkdir -p ./tmp
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+HOST="${HOST:-http://localhost:8080}"
+UID_VAL="${UID_VAL:-$(date +%s)$$}"
+USE_SQLITE="${USE_SQLITE:-true}"
 
-# Clean up database
-rm -f ./data/gorm.db
+echo "Running Hurl API tests against $HOST (uid=$UID_VAL)"
 
-# Download Postman collection
-echo "Downloading Postman collection..."
-curl -L -s https://raw.githubusercontent.com/gothinkster/realworld/main/api/Conduit.postman_collection.json -o ./tmp/Conduit.postman_collection.json
+# Start a local server if HOST is localhost and nothing is listening
+if [[ "$HOST" == "http://localhost:8080" ]]; then
+  if ! curl -sf "$HOST/api/ping/" > /dev/null 2>&1; then
+    echo "Building server..."
+    cd "$DIR"
+    go build -o /tmp/realworld-server hello.go
 
-# Build the application
-echo "Building application..."
-go build -o app hello.go
+    # Clear SQLite DB for a clean run
+    if [[ "$USE_SQLITE" == "true" ]]; then
+      rm -f ./data/gorm.db
+    fi
 
-# Start the server
-echo "Starting server..."
-PORT=8080 ./app &
-SERVER_PID=$!
+    echo "Starting server..."
+    /tmp/realworld-server &
+    SERVER_PID=$!
+    cleanup() {
+      echo "Stopping server..."
+      kill "$SERVER_PID" 2>/dev/null || true
+      rm -f /tmp/realworld-server
+    }
+    trap cleanup EXIT
 
-# Cleanup function to kill server on exit
-cleanup() {
-    echo "Stopping server..."
-    kill $SERVER_PID
-    rm -f app
-}
-trap cleanup EXIT
-
-# Wait for server to be ready
-echo "Waiting for server to be ready..."
-for i in {1..30}; do
-    if curl -s http://localhost:8080/api/ping > /dev/null; then
+    echo "Waiting for server to be ready..."
+    for i in {1..30}; do
+      if curl -sf "$HOST/api/ping/" > /dev/null 2>&1; then
         echo "Server is up!"
         break
-    fi
-    sleep 1
-done
-
-# Run Newman
-echo "Running API tests..."
-# Check if newman is available
-if ! command -v newman &> /dev/null; then
-    echo "newman not found, trying npx..."
-    npx newman run ./tmp/Conduit.postman_collection.json \
-      --global-var "APIURL=http://localhost:8080/api" \
-      --global-var "EMAIL=test@example.com" \
-      --global-var "PASSWORD=password" \
-      --global-var "USERNAME=testuser" \
-      --delay-request 50
-else
-    newman run ./tmp/Conduit.postman_collection.json \
-      --global-var "APIURL=http://localhost:8080/api" \
-      --global-var "EMAIL=test@example.com" \
-      --global-var "PASSWORD=password" \
-      --global-var "USERNAME=testuser" \
-      --delay-request 50
+      fi
+      sleep 1
+    done
+  fi
 fi
+
+# Select test files
+HURL_DIR="$DIR/api/hurl"
+FILES=("$@")
+if [ ${#FILES[@]} -eq 0 ]; then
+  FILES=("$HURL_DIR"/*.hurl)
+fi
+
+echo ""
+echo "Running tests..."
+hurl --test \
+  --jobs 1 \
+  --variable "host=$HOST" \
+  --variable "uid=$UID_VAL" \
+  "${FILES[@]}"

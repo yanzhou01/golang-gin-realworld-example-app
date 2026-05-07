@@ -13,24 +13,28 @@ type ProfileSerializer struct {
 
 // Declare your response schema here
 type ProfileResponse struct {
-	ID        uint   `json:"-"`
-	Username  string `json:"username"`
-	Bio       string `json:"bio"`
-	Image     string `json:"image"`
-	Following bool   `json:"following"`
+	ID        uint    `json:"-"`
+	Username  string  `json:"username"`
+	Bio       *string `json:"bio"`
+	Image     *string `json:"image"`
+	Following bool    `json:"following"`
 }
 
 // Put your response logic including wrap the userModel here.
 func (self *ProfileSerializer) Response() ProfileResponse {
 	myUserModel := self.C.MustGet("my_user_model").(UserModel)
-	image := ""
-	if self.Image != nil {
-		image = *self.Image
+	var bio *string
+	if self.Bio != "" {
+		bio = &self.Bio
+	}
+	var image *string
+	if self.Image != nil && *self.Image != "" {
+		image = self.Image
 	}
 	profile := ProfileResponse{
 		ID:        self.ID,
 		Username:  self.Username,
-		Bio:       self.Bio,
+		Bio:       bio,
 		Image:     image,
 		Following: myUserModel.isFollowing(self.UserModel),
 	}
@@ -42,23 +46,27 @@ type UserSerializer struct {
 }
 
 type UserResponse struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Bio      string `json:"bio"`
-	Image    string `json:"image"`
-	Token    string `json:"token"`
+	Username string  `json:"username"`
+	Email    string  `json:"email"`
+	Bio      *string `json:"bio"`
+	Image    *string `json:"image"`
+	Token    string  `json:"token"`
 }
 
 func (self *UserSerializer) Response() UserResponse {
 	myUserModel := self.c.MustGet("my_user_model").(UserModel)
-	image := ""
-	if myUserModel.Image != nil {
-		image = *myUserModel.Image
+	var bio *string
+	if myUserModel.Bio != "" {
+		bio = &myUserModel.Bio
+	}
+	var image *string
+	if myUserModel.Image != nil && *myUserModel.Image != "" {
+		image = myUserModel.Image
 	}
 	user := UserResponse{
 		Username: myUserModel.Username,
 		Email:    myUserModel.Email,
-		Bio:      myUserModel.Bio,
+		Bio:      bio,
 		Image:    image,
 		Token:    common.GenToken(myUserModel.ID),
 	}

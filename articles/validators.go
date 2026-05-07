@@ -1,6 +1,8 @@
 package articles
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
 	"github.com/gothinkster/golang-gin-realworld-example-app/common"
@@ -9,12 +11,13 @@ import (
 
 type ArticleModelValidator struct {
 	Article struct {
-		Title       string   `form:"title" json:"title" binding:"required,min=4"`
-		Description string   `form:"description" json:"description" binding:"required,max=2048"`
-		Body        string   `form:"body" json:"body" binding:"required,max=2048"`
-		Tags        []string `form:"tagList" json:"tagList"`
+		Title       string    `form:"title" json:"title" binding:"required"`
+		Description string    `form:"description" json:"description" binding:"required"`
+		Body        string    `form:"body" json:"body" binding:"required"`
+		Tags        *[]string `form:"tagList" json:"tagList"`
 	} `json:"article"`
 	articleModel ArticleModel `json:"-"`
+	isUpdate     bool
 }
 
 func NewArticleModelValidator() ArticleModelValidator {
@@ -23,12 +26,15 @@ func NewArticleModelValidator() ArticleModelValidator {
 
 func NewArticleModelValidatorFillWith(articleModel ArticleModel) ArticleModelValidator {
 	articleModelValidator := NewArticleModelValidator()
+	articleModelValidator.isUpdate = true
 	articleModelValidator.Article.Title = articleModel.Title
 	articleModelValidator.Article.Description = articleModel.Description
 	articleModelValidator.Article.Body = articleModel.Body
+	existingTags := make([]string, 0)
 	for _, tagModel := range articleModel.Tags {
-		articleModelValidator.Article.Tags = append(articleModelValidator.Article.Tags, tagModel.Tag)
+		existingTags = append(existingTags, tagModel.Tag)
 	}
+	articleModelValidator.Article.Tags = &existingTags
 	return articleModelValidator
 }
 
@@ -39,12 +45,23 @@ func (s *ArticleModelValidator) Bind(c *gin.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// For update: tagList: null is rejected (nil pointer after JSON unmarshal)
+	if s.isUpdate && s.Article.Tags == nil {
+		return errors.New("tagList cannot be null")
+	}
+
 	s.articleModel.Slug = slug.Make(s.Article.Title)
 	s.articleModel.Title = s.Article.Title
 	s.articleModel.Description = s.Article.Description
 	s.articleModel.Body = s.Article.Body
 	s.articleModel.Author = GetArticleUserModel(myUserModel)
-	s.articleModel.setTags(s.Article.Tags)
+
+	tags := []string{}
+	if s.Article.Tags != nil {
+		tags = *s.Article.Tags
+	}
+	s.articleModel.setTags(tags)
 	return nil
 }
 

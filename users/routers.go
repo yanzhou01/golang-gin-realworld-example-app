@@ -33,7 +33,7 @@ func ProfileRetrieve(c *gin.Context) {
 	username := c.Param("username")
 	userModel, err := FindOneUser(&UserModel{Username: username})
 	if err != nil {
-		c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("Invalid username")))
+		c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("not found")))
 		return
 	}
 	profileSerializer := ProfileSerializer{c, userModel}
@@ -44,7 +44,7 @@ func ProfileFollow(c *gin.Context) {
 	username := c.Param("username")
 	userModel, err := FindOneUser(&UserModel{Username: username})
 	if err != nil {
-		c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("Invalid username")))
+		c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("not found")))
 		return
 	}
 	myUserModel := c.MustGet("my_user_model").(UserModel)
@@ -61,7 +61,7 @@ func ProfileUnfollow(c *gin.Context) {
 	username := c.Param("username")
 	userModel, err := FindOneUser(&UserModel{Username: username})
 	if err != nil {
-		c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("Invalid username")))
+		c.JSON(http.StatusNotFound, common.NewError("profile", errors.New("not found")))
 		return
 	}
 	myUserModel := c.MustGet("my_user_model").(UserModel)
@@ -83,6 +83,10 @@ func UsersRegistration(c *gin.Context) {
 	}
 
 	if err := SaveOne(&userModelValidator.userModel); err != nil {
+		if isDup, field := common.IsDuplicateKeyError(err); isDup {
+			c.JSON(http.StatusConflict, common.NewError(field, errors.New("has already been taken")))
+			return
+		}
 		c.JSON(http.StatusUnprocessableEntity, common.NewError("database", err))
 		return
 	}
@@ -100,12 +104,12 @@ func UsersLogin(c *gin.Context) {
 	userModel, err := FindOneUser(&UserModel{Email: loginValidator.userModel.Email})
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, common.NewError("login", errors.New("Not Registered email or invalid password")))
+		c.JSON(http.StatusUnauthorized, common.NewError("credentials", errors.New("invalid")))
 		return
 	}
 
 	if userModel.checkPassword(loginValidator.User.Password) != nil {
-		c.JSON(http.StatusUnauthorized, common.NewError("login", errors.New("Not Registered email or invalid password")))
+		c.JSON(http.StatusUnauthorized, common.NewError("credentials", errors.New("invalid")))
 		return
 	}
 	UpdateContextUserModel(c, userModel.ID)
@@ -126,8 +130,17 @@ func UserUpdate(c *gin.Context) {
 		return
 	}
 
-	userModelValidator.userModel.ID = myUserModel.ID
-	if err := myUserModel.Update(userModelValidator.userModel); err != nil {
+	db := common.GetDB()
+	updates := map[string]interface{}{
+		"username": userModelValidator.userModel.Username,
+		"email":    userModelValidator.userModel.Email,
+		"bio":      userModelValidator.userModel.Bio,
+		"image":    userModelValidator.userModel.Image,
+	}
+	if userModelValidator.userModel.PasswordHash != "" {
+		updates["password"] = userModelValidator.userModel.PasswordHash
+	}
+	if err := db.Model(&myUserModel).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusUnprocessableEntity, common.NewError("database", err))
 		return
 	}

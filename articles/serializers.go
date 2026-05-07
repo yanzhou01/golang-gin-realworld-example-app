@@ -59,6 +59,20 @@ type ArticleResponse struct {
 	FavoritesCount uint                  `json:"favoritesCount"`
 }
 
+// ArticleListResponse is the same as ArticleResponse but without the body field (for list endpoints)
+type ArticleListResponse struct {
+	ID             uint                  `json:"-"`
+	Title          string                `json:"title"`
+	Slug           string                `json:"slug"`
+	Description    string                `json:"description"`
+	CreatedAt      string                `json:"createdAt"`
+	UpdatedAt      string                `json:"updatedAt"`
+	Author         users.ProfileResponse `json:"author"`
+	Tags           []string              `json:"tagList"`
+	Favorite       bool                  `json:"favorited"`
+	FavoritesCount uint                  `json:"favoritesCount"`
+}
+
 type ArticlesSerializer struct {
 	C        *gin.Context
 	Articles []ArticleModel
@@ -89,15 +103,14 @@ func (s *ArticleSerializer) Response() ArticleResponse {
 	return response
 }
 
-// ResponseWithPreloaded creates response using preloaded favorite data to avoid N+1 queries
-func (s *ArticleSerializer) ResponseWithPreloaded(favorited bool, favoritesCount uint) ArticleResponse {
+// ListResponseWithPreloaded creates list response (no body field) using preloaded favorite data
+func (s *ArticleSerializer) ListResponseWithPreloaded(favorited bool, favoritesCount uint) ArticleListResponse {
 	authorSerializer := ArticleUserSerializer{C: s.C, ArticleUserModel: s.Author}
-	response := ArticleResponse{
+	response := ArticleListResponse{
 		ID:             s.ID,
 		Slug:           s.Slug,
 		Title:          s.Title,
 		Description:    s.Description,
-		Body:           s.Body,
 		CreatedAt:      s.CreatedAt.UTC().Format("2006-01-02T15:04:05.999Z"),
 		UpdatedAt:      s.UpdatedAt.UTC().Format("2006-01-02T15:04:05.999Z"),
 		Author:         authorSerializer.Response(),
@@ -113,8 +126,8 @@ func (s *ArticleSerializer) ResponseWithPreloaded(favorited bool, favoritesCount
 	return response
 }
 
-func (s *ArticlesSerializer) Response() []ArticleResponse {
-	response := []ArticleResponse{}
+func (s *ArticlesSerializer) Response() []ArticleListResponse {
+	response := []ArticleListResponse{}
 	if len(s.Articles) == 0 {
 		return response
 	}
@@ -135,7 +148,7 @@ func (s *ArticlesSerializer) Response() []ArticleResponse {
 		serializer := ArticleSerializer{C: s.C, ArticleModel: article}
 		favorited := favoriteStatus[article.ID]
 		count := favoriteCounts[article.ID]
-		response = append(response, serializer.ResponseWithPreloaded(favorited, count))
+		response = append(response, serializer.ListResponseWithPreloaded(favorited, count))
 	}
 	return response
 }

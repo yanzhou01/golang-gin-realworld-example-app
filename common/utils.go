@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -63,31 +64,75 @@ type CommonError struct {
 	Errors map[string]interface{} `json:"errors"`
 }
 
-// To handle the error returned by c.Bind in gin framework
-// https://github.com/go-playground/validator/blob/v9/_examples/translations/main.go
+func validationMessage(v validator.FieldError) string {
+	switch v.Tag() {
+	case "required":
+		return "can't be blank"
+	case "email":
+		// Empty string should say "can't be blank" rather than "is invalid"
+		if val, ok := v.Value().(string); ok && val == "" {
+			return "can't be blank"
+		}
+		return "is invalid"
+	case "min":
+		// If the value is an empty string, say "can't be blank" rather than "is too short"
+		if val, ok := v.Value().(string); ok && val == "" {
+			return "can't be blank"
+		}
+		return fmt.Sprintf("is too short (minimum is %s characters)", v.Param())
+	case "max":
+		return fmt.Sprintf("is too long (maximum is %s characters)", v.Param())
+	case "url":
+		return "is invalid"
+	default:
+		return fmt.Sprintf("%s failed validation: %s", strings.ToLower(v.Field()), v.Tag())
+	}
+}
+
+// NewValidatorError returns errors in format: {"errors": {"field": ["message"]}}
 func NewValidatorError(err error) CommonError {
 	res := CommonError{}
 	res.Errors = make(map[string]interface{})
-	errs := err.(validator.ValidationErrors)
+	errs, ok := err.(validator.ValidationErrors)
+	if !ok {
+		res.Errors["body"] = []string{err.Error()}
+		return res
+	}
 	for _, v := range errs {
-		// can translate each error one at a time.
-		//fmt.Println("gg",v.NameNamespace)
-		if v.Param() != "" {
-			res.Errors[v.Field()] = fmt.Sprintf("{%v: %v}", v.Tag(), v.Param())
-		} else {
-			res.Errors[v.Field()] = fmt.Sprintf("{key: %v}", v.Tag())
-		}
-
+		fieldName := strings.ToLower(v.Field())
+		res.Errors[fieldName] = []string{validationMessage(v)}
 	}
 	return res
 }
 
-// Wrap the error info in an object
+// NewError wraps error in format: {"errors": {"key": ["message"]}}
 func NewError(key string, err error) CommonError {
 	res := CommonError{}
 	res.Errors = make(map[string]interface{})
-	res.Errors[key] = err.Error()
+	res.Errors[key] = []string{err.Error()}
 	return res
+}
+
+// IsDuplicateKeyError checks if a DB error is a unique constraint violation.
+// Returns (true, "username") or (true, "email") etc.
+func IsDuplicateKeyError(err error) (bool, string) {
+	msg := strings.ToLower(err.Error())
+	isDup := strings.Contains(msg, "unique constraint failed") ||
+		strings.Contains(msg, "duplicate entry") ||
+		strings.Contains(msg, "1062")
+	if !isDup {
+		return false, ""
+	}
+	if strings.Contains(msg, "username") {
+		return true, "username"
+	}
+	if strings.Contains(msg, "email") {
+		return true, "email"
+	}
+	if strings.Contains(msg, "slug") {
+		return true, "slug"
+	}
+	return true, "record"
 }
 
 // Changed the c.MustBindWith() ->  c.ShouldBindWith().

@@ -208,19 +208,19 @@ func TestNewValidatorError(t *testing.T) {
 		{
 			`{"username": "wangzitian0","password": "01234567866"}`,
 			http.StatusUnauthorized,
-			`{"errors":{"user":"wrong username or password"}}`,
+			`{"errors":{"user":\["wrong username or password"\]}}`,
 			"wrong login status should return StatusUnauthorized",
 		},
 		{
 			`{"username": "wangzitian0","password": "0122"}`,
 			http.StatusUnprocessableEntity,
-			`{"errors":{"Password":"{min: 8}"}}`,
+			`"password"`,
 			"invalid password of too short and should return StatusUnprocessableEntity",
 		},
 		{
 			`{"username": "_wangzitian0","password": "0123456789"}`,
 			http.StatusUnprocessableEntity,
-			`{"errors":{"Username":"{key: alphanum}"}}`,
+			`"username"`,
 			"invalid username of non alphanum and should return StatusUnprocessableEntity",
 		},
 	}

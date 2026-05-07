@@ -216,21 +216,14 @@ func FindManyArticle(tag, author, limit, offset, favorited string) ([]ArticleMod
 		articleUserModel := GetArticleUserModel(userModel)
 
 		if articleUserModel.ID != 0 {
-			count = int(tx.Model(&articleUserModel).Association("ArticleModels").Count())
-			// Get article IDs via association
-			var tempModels []ArticleModel
-			if err := tx.Model(&articleUserModel).Offset(offset_int).Limit(limit_int).Association("ArticleModels").Find(&tempModels); err != nil {
-				tx.Rollback()
-				return models, count, err
-			}
-			// Fetch articles with preloaded associations in single query, ordered by updated_at desc
-			if len(tempModels) > 0 {
-				var ids []uint
-				for _, m := range tempModels {
-					ids = append(ids, m.ID)
-				}
-				tx.Preload("Author.UserModel").Preload("Tags").Where("id IN ?", ids).Order("updated_at desc").Find(&models)
-			}
+			var count64 int64
+			tx.Model(&ArticleModel{}).Where("author_id = ?", articleUserModel.ID).Count(&count64)
+			count = int(count64)
+			tx.Preload("Author.UserModel").Preload("Tags").
+				Where("author_id = ?", articleUserModel.ID).
+				Order("created_at desc").
+				Offset(offset_int).Limit(limit_int).
+				Find(&models)
 		}
 	} else if favorited != "" {
 		var userModel users.UserModel
@@ -256,7 +249,7 @@ func FindManyArticle(tag, author, limit, offset, favorited string) ([]ArticleMod
 		var count64 int64
 		tx.Model(&ArticleModel{}).Count(&count64)
 		count = int(count64)
-		tx.Offset(offset_int).Limit(limit_int).Preload("Author.UserModel").Preload("Tags").Find(&models)
+		tx.Order("created_at desc").Offset(offset_int).Limit(limit_int).Preload("Author.UserModel").Preload("Tags").Find(&models)
 	}
 
 	err := tx.Commit().Error
@@ -365,4 +358,9 @@ func DeleteCommentModel(condition interface{}) error {
 	db := common.GetDB()
 	err := db.Where(condition).Delete(&CommentModel{}).Error
 	return err
+}
+
+func DeleteCommentByID(id uint) error {
+	db := common.GetDB()
+	return db.Delete(&CommentModel{}, id).Error
 }
