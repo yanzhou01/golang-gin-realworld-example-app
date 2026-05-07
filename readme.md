@@ -85,7 +85,7 @@ go tool cover -func=coverage.out
 docker compose up --build -d
 
 # 2. 打开浏览器
-open http://localhost:3000        # 前端界面
+open http://localhost:3001        # 前端界面
 # 后端 API: http://localhost:8080/api
 ```
 
