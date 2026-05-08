@@ -219,9 +219,51 @@ docker compose logs seed
 
 ---
 
-## API 测试（Postman / Newman）
+## API 测试（Hurl）
+
+本项目使用 [Hurl](https://hurl.dev/) 作为 API 测试工具，测试集合位于 `api/hurl/`，覆盖 13 个场景、154 个 HTTP 请求。
+
+### 前提
 
 ```bash
-# 运行官方 RealWorld API 测试集合
+# 安装 Hurl（macOS）
+brew install hurl
+
+# 或查看官方安装文档：https://hurl.dev/docs/installation.html
+```
+
+### 运行测试
+
+```bash
+# 后端服务需已启动（本地 SQLite 或 Docker MySQL 均可）
 bash scripts/run-api-tests.sh
 ```
+
+脚本会自动检测 `http://localhost:8080` 是否已有服务在运行：
+- **已运行**：直接使用现有服务执行测试
+- **未运行**：自动编译并启动临时服务（SQLite 模式），测试结束后自动停止
+
+也可以手动指定目标地址：
+
+```bash
+HOST=http://your-api-host:8080 bash scripts/run-api-tests.sh
+```
+
+### 测试覆盖范围
+
+| 文件 | 场景 | 内容 |
+|------|------|------|
+| `auth.hurl` | 20 | 注册、登录、获取 / 更新当前用户 |
+| `articles.hurl` | 17 | 创建 / 列表 / 标签过滤 / 收藏文章 |
+| `comments.hurl` | 13 | 添加 / 获取 / 删除评论 |
+| `feed.hurl` | 12 | 关注后获取个人 Feed，分页 |
+| `pagination.hurl` | 7 | offset / limit 分页 |
+| `profiles.hurl` | 7 | 获取资料、关注 / 取关 |
+| `favorites.hurl` | 9 | 收藏 / 取消收藏文章 |
+| `tags.hurl` | 4 | 获取热门标签 |
+| `errors_auth.hurl` | 20 | 认证相关错误（400 / 401 / 409 / 422） |
+| `errors_articles.hurl` | 20 | 文章相关错误（403 / 404 / 422） |
+| `errors_comments.hurl` | 10 | 评论相关错误 |
+| `errors_authorization.hurl` | 9 | 未授权操作错误 |
+| `errors_profiles.hurl` | 6 | Profile 相关错误 |
+| **合计** | **154** | **13/13 全部通过** |
