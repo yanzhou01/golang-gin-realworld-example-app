@@ -20,6 +20,7 @@ services:
 
   backend:
     build: .
+    image: realworld-backend-backend
     environment:
       DB_DSN: "conduit:conduit@tcp(mysql:3306)/realworld?parseTime=true&charset=utf8mb4&loc=Local"
       PORT: 8080
@@ -47,7 +48,7 @@ services:
 
   frontend:
     build:
-      context: ../realworld-frontend
+      context: ./frontend
       args:
         API_URL: http://localhost:8080/api
     ports:

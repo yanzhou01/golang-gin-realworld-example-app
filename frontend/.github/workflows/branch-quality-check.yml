@@ -1,0 +1,19 @@
+name: Branch Quality Check
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
+      - 'release/**'
+  pull_request:
+    branches:
+      - master
+      - develop
+
+jobs:
+  code-quality-and-build:
+    uses: ./.github/workflows/code-quality-and-build.yml
