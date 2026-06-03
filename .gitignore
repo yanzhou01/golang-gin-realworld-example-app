@@ -39,3 +39,5 @@ results.sarif
 
 bak.*
 tmp/
+env.sh
+*.pem
