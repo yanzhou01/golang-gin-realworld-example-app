@@ -62,7 +62,7 @@ Aurora MySQL (source)  ──DM CDC──→  TiDB Cloud (target)
 bash deploy-aurora-ec2.sh
 ```
 
-> `deploy-aurora-ec2.sh` 从环境变量读取 `EC2_HOST`、`AURORA_HOST` 等，无需手动修改。
+> `deploy-aurora-ec2.sh` 从环境变量读取 `EC2_HOST`、`SSH_KEY`、`AURORA_HOST`，运行前确保已 export（未设置会报错退出）。
 
 **脚本做了什么：**
 1. 在 EC2 上通过 `get.docker.com` 安装 Docker（跨发行版通用）
@@ -148,7 +148,7 @@ curl -sSo ~/rds-ca.pem https://truststore.pki.rds.amazonaws.com/global/global-bu
 
 ```bash
 tiup dumpling \
-  -u $AURORA_USER -p $AURORA_PASS \
+  -u "$AURORA_USER" -p"$AURORA_PASS" \
   -h $AURORA_HOST -P 3306 \
   --ca ~/rds-ca.pem \
   -B realworld \

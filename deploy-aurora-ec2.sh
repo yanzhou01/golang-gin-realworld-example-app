@@ -7,11 +7,12 @@
 
 set -euo pipefail
 
-EC2_HOST="ec2-13-231-221-52.ap-northeast-1.compute.amazonaws.com"
-EC2_USER="ec2-user"
-SSH_KEY="$HOME/Downloads/yanzhou.pem"
-REMOTE_DIR="/home/ec2-user/front-backend-project"
-AURORA_HOST="yanzhouw-newhire-test-source.cluster-cdximlzkzbgd.ap-northeast-1.rds.amazonaws.com"
+# Read from environment variables — set these before running (see RUNBOOK.md)
+EC2_HOST="${EC2_HOST:?set EC2_HOST}"
+EC2_USER="${EC2_USER:-ec2-user}"
+SSH_KEY="${SSH_KEY:?set SSH_KEY}"
+REMOTE_DIR="/home/${EC2_USER}/front-backend-project"
+AURORA_HOST="${AURORA_HOST:?set AURORA_HOST}"
 
 SSH="ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o BatchMode=yes $EC2_USER@$EC2_HOST"
 SCP="scp -i $SSH_KEY -o StrictHostKeyChecking=no -o BatchMode=yes"
