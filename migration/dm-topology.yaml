@@ -1,0 +1,19 @@
+# TiDB DM 单节点拓扑（部署在 EC2 上）
+# 使用方式：tiup dm deploy dm-realworld v7.5.0 dm-topology.yaml -y
+#           tiup dm start dm-realworld
+
+global:
+  user: "ec2-user"
+  deploy_dir: "/home/ec2-user/tidb-dm/deploy"
+  data_dir:   "/home/ec2-user/tidb-dm/data"
+
+master_servers:
+  - host: 127.0.0.1
+    port: 8261
+    peer_port: 8291
+    log_dir: "/home/ec2-user/tidb-dm/logs/master"
+
+worker_servers:
+  - host: 127.0.0.1
+    port: 8262
+    log_dir: "/home/ec2-user/tidb-dm/logs/worker"

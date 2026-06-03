@@ -1,0 +1,29 @@
+# DM Task 配置：realworld 全量 + 增量迁移
+# Aurora MySQL → TiDB Cloud
+# 使用方式：tiup dmctl --master-addr=127.0.0.1:8261 start-task dm-task.yaml
+
+name: "realworld-live-migration"
+
+# 全量已手动完成（Dumpling + mysql），只做增量 CDC
+task-mode: "incremental"
+
+# ── 目标：TiDB Cloud ──────────────────────────────────────────────────────────
+target-database:
+  host: "privatelink-20616390.mczxoo2az8r7.clusters.tidb-cloud.com"
+  port: 4000
+  user: "root"
+  password: "password"
+
+# ── 源：Aurora MySQL ──────────────────────────────────────────────────────────
+mysql-instances:
+  - source-id: "aurora-realworld"
+    block-allow-list: "realworld-only"
+    meta:
+      # Dumpling metadata 记录的快照位点，DM 从这里开始追增量
+      binlog-name: "mysql-bin-changelog.000002"
+      binlog-pos:  587153
+
+# ── 过滤规则：只同步 realworld 库 ────────────────────────────────────────────
+block-allow-list:
+  realworld-only:
+    do-dbs: ["realworld"]

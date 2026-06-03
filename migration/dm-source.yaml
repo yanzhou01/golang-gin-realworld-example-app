@@ -1,0 +1,11 @@
+source-id: "aurora-realworld"
+flavor: "mysql"
+enable-gtid: false
+
+from:
+  host: "yanzhouw-newhire-test-source.cluster-cdximlzkzbgd.ap-northeast-1.rds.amazonaws.com"
+  port: 3306
+  user: "admin"
+  password: "password"
+  security:
+    ssl-ca: "/home/ec2-user/rds-ca.pem"
