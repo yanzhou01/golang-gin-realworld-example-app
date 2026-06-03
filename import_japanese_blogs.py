@@ -8,13 +8,14 @@ Usage: python import_japanese_blogs.py
 Requires: pip install anthropic requests
 """
 
+import os
 import openai
 import requests
 import json
 import time
 import sys
 
-BACKEND_URL = "http://ec2-13-231-221-52.ap-northeast-1.compute.amazonaws.com:8080/api"
+BACKEND_URL = f"http://{os.environ.get('EC2_HOST', 'localhost')}:8080/api"
 
 # 8 seed users created by the seed service (password: password123)
 USERS = [
@@ -193,7 +194,7 @@ def main():
 
     # ── Summary ──────────────────────────────────────────────────────────────
     print(f"\n=== Done: {total_imported}/{total_articles} articles imported ===")
-    print(f"  Frontend: http://ec2-13-231-221-52.ap-northeast-1.compute.amazonaws.com:3001")
+    print(f"  Frontend: http://{os.environ.get('EC2_HOST', 'localhost')}:3001")
 
 
 if __name__ == "__main__":
