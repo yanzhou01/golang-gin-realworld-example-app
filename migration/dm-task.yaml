@@ -9,19 +9,19 @@ task-mode: "incremental"
 
 # ── 目标：TiDB Cloud ──────────────────────────────────────────────────────────
 target-database:
-  host: "privatelink-20616390.mczxoo2az8r7.clusters.tidb-cloud.com"
+  host: "<TIDB_HOST>"
   port: 4000
-  user: "root"
-  password: "password"
+  user: "<TIDB_USER>"
+  password: "<TIDB_PASS>"
 
 # ── 源：Aurora MySQL ──────────────────────────────────────────────────────────
 mysql-instances:
   - source-id: "aurora-realworld"
     block-allow-list: "realworld-only"
     meta:
-      # Dumpling metadata 记录的快照位点，DM 从这里开始追增量
-      binlog-name: "mysql-bin-changelog.000002"
-      binlog-pos:  587153
+      # 填入 cat ~/aurora-dump/metadata 中的 Log 和 Pos
+      binlog-name: "<Log field from aurora-dump/metadata>"
+      binlog-pos:  0  # <Pos field from aurora-dump/metadata>
 
 # ── 过滤规则：只同步 realworld 库 ────────────────────────────────────────────
 block-allow-list:

@@ -3,9 +3,9 @@ flavor: "mysql"
 enable-gtid: false
 
 from:
-  host: "yanzhouw-newhire-test-source.cluster-cdximlzkzbgd.ap-northeast-1.rds.amazonaws.com"
+  host: "<AURORA_HOST>"
   port: 3306
-  user: "admin"
-  password: "password"
+  user: "<AURORA_USER>"
+  password: "<AURORA_PASS>"
   security:
     ssl-ca: "/home/ec2-user/rds-ca.pem"
