@@ -133,6 +133,8 @@ ssh -i $SSH_KEY $EC2_USER@$EC2_HOST "pkill -f workload.py"
 ssh -i $SSH_KEY $EC2_USER@$EC2_HOST
 ```
 
+> SSH 进入 EC2 后是全新 shell，**需要重新 export EC2 的环境变量**（见顶部"EC2 上"那块），或将其写入 `~/.bash_profile`。
+
 ### 4.1 安装工具 & 下载 RDS CA 证书
 
 ```bash
@@ -264,8 +266,8 @@ block-allow-list:
 ### 5.2 部署 DM
 
 ```bash
-# tiup 连 localhost 需要 SSH 密钥
-ssh-keygen -t rsa -b 2048 -N "" -f ~/.ssh/id_rsa -q
+# tiup 连 localhost 需要 SSH 密钥（已存在则跳过生成）
+[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -b 2048 -N "" -f ~/.ssh/id_rsa -q
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 
