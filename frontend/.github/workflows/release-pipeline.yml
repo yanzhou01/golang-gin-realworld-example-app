@@ -1,0 +1,76 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/realworld
+  RELEASE_API_URL: ${{ vars.API_URL || 'http://localhost:30400/api' }}
+
+jobs:
+  validate-ref:
+    name: Validate Git Ref
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - name: Fail if not release tag
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          echo "This workflow must run from a tag matching v*."
+          exit 1
+
+      - id: version
+        name: Determine release version
+        run: echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+  code-quality-and-build:
+    needs: validate-ref
+    uses: ./.github/workflows/code-quality-and-build.yml
+
+  docker-build-push:
+    name: Docker Build and Push
+    needs:
+      - validate-ref
+      - code-quality-and-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          build-args: |
+            API_URL=${{ env.RELEASE_API_URL }}
+            VERSION=${{ needs.validate-ref.outputs.version }}
+            BUILD_DATE=${{ github.run_started_at }}
+            GIT_COMMIT=${{ github.sha }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-ref.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

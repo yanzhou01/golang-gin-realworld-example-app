@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: realworld
+      MYSQL_USER: conduit
+      MYSQL_PASSWORD: conduit
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "conduit", "-pconduit"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  backend:
+    build: .
+    image: realworld-backend-backend
+    environment:
+      DB_DSN: "conduit:conduit@tcp(mysql:3306)/realworld?parseTime=true&charset=utf8mb4&loc=Local"
+      PORT: 8080
+      GIN_MODE: release
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/ping/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  seed:
+    image: realworld-backend-backend
+    environment:
+      API_URL: http://backend:8080/api
+    entrypoint: ["./seed"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://localhost:8080/api
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
