@@ -9,15 +9,16 @@
 #
 set -euo pipefail
 
-AURORA_HOST="yanzhouw-newhire-test-source.cluster-cdximlzkzbgd.ap-northeast-1.rds.amazonaws.com"
-AURORA_USER="admin"
-AURORA_PASS="password"
+# 从环境变量读取，运行前请先 export（见 RUNBOOK.md 顶部"环境变量配置"章节）
+AURORA_HOST="${AURORA_HOST:?need AURORA_HOST}"
+AURORA_USER="${AURORA_USER:-admin}"
+AURORA_PASS="${AURORA_PASS:?need AURORA_PASS}"
 AURORA_DB="realworld"
 
-TIDB_HOST="privatelink-20616390.mczxoo2az8r7.clusters.tidb-cloud.com"
-TIDB_PORT=4000
-TIDB_USER="root"
-TIDB_PASS="password"
+TIDB_HOST="${TIDB_HOST:?need TIDB_HOST}"
+TIDB_PORT="${TIDB_PORT:-4000}"
+TIDB_USER="${TIDB_USER:-root}"
+TIDB_PASS="${TIDB_PASS:?need TIDB_PASS}"
 TIDB_DB="realworld"
 
 DUMP_DIR="$HOME/aurora-dump"

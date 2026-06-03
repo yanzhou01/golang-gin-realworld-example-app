@@ -29,18 +29,21 @@ echo "  ✓ ~/rds-ca.pem"
 
 echo ""
 echo "=== Step 3: 验证 Aurora binlog ==="
-LOG_BIN=$(mysql -h yanzhouw-newhire-test-source.cluster-cdximlzkzbgd.ap-northeast-1.rds.amazonaws.com \
-  -P 3306 -u admin -ppassword --ssl-mode=REQUIRED --ssl-ca=~/rds-ca.pem \
+AURORA_HOST="${AURORA_HOST:?need AURORA_HOST}"
+AURORA_USER="${AURORA_USER:-admin}"
+AURORA_PASS="${AURORA_PASS:?need AURORA_PASS}"
+
+LOG_BIN=$(mysql -h "$AURORA_HOST" -P 3306 -u "$AURORA_USER" -p"$AURORA_PASS" \
+  --ssl-mode=REQUIRED --ssl-ca=~/rds-ca.pem \
   -N -e "SHOW VARIABLES LIKE 'log_bin';" 2>/dev/null | awk '{print $2}')
 if [ "$LOG_BIN" != "ON" ]; then
   echo "  ✗ log_bin=$LOG_BIN — binlog 未开启"
   echo ""
   echo "  请先在 AWS 控制台开启 Aurora binlog："
-  echo "  1. RDS → 参数组 → 新建 Cluster 参数组（aurora-mysql8.0）"
+  echo "  1. RDS → 参数组 → 新建 Cluster 参数组"
   echo "  2. 修改参数：binlog_format = ROW"
-  echo "  3. 将参数组应用到集群：yanzhouw-newhire-test-source"
-  echo "  4. 重启集群"
-  echo "  5. 重新运行本脚本"
+  echo "  3. 将参数组应用到集群并重启"
+  echo "  4. 重新运行本脚本"
   exit 1
 fi
 echo "  ✓ log_bin=ON"

@@ -160,8 +160,8 @@ tiup dumpling \
 ```bash
 cat ~/aurora-dump/metadata
 # SHOW MASTER STATUS:
-#     Log: mysql-bin-changelog.000002   ← 记下
-#     Pos: 587153                        ← 记下
+#     Log: mysql-bin-changelog.000002   ← 记下这个值
+#     Pos: 123456789                     ← 记下这个值
 ```
 
 ### 4.3 导入 TiDB Cloud
@@ -251,8 +251,8 @@ mysql-instances:
   - source-id: "aurora-realworld"
     block-allow-list: "realworld-only"
     meta:
-      binlog-name: "<来自 metadata 的 Log>"   # 例：mysql-bin-changelog.000002
-      binlog-pos:  <来自 metadata 的 Pos>      # 例：587153
+      binlog-name: "<来自 metadata 的 Log>"   # 例：mysql-bin-changelog.000001
+      binlog-pos:  <来自 metadata 的 Pos>      # 例：123456789
 
 block-allow-list:
   realworld-only:
@@ -363,7 +363,7 @@ tiup dm stop dm-realworld -y
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8080/api/users/login \
   -H 'Content-Type: application/json' \
-  -d '{"user":{"email":"alice@example.com","password":"password123"}}' \
+  -d '{"user":{"email":"<seed-user-email>","password":"<seed-user-password>"}}' \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["user"]["token"])')
 
 curl -s -X POST http://localhost:8080/api/articles/ \
