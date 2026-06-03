@@ -2,28 +2,33 @@
 
 ## 环境变量配置
 
-克隆本仓库后，先在本地 shell 设置以下变量，后续所有命令直接复制执行。
+克隆本仓库后，先设置以下变量。**本地 Mac 和 EC2 上都需要 export**（SSH 不会自动传递本地变量）。
 
+**本地 Mac（Step 1～3）：**
 ```bash
-# 本地 Mac
-export SSH_KEY=~/Downloads/your-key.pem          # EC2 SSH 私钥路径
-export EC2_HOST=<your-ec2-public-dns>            # EC2 公网地址
-export EC2_USER=ec2-user                         # EC2 登录用户名
+export SSH_KEY=~/Downloads/your-key.pem
+export EC2_HOST=<your-ec2-public-dns>
+export EC2_USER=ec2-user
+export OPENAI_API_KEY=sk-proj-...
+```
 
-# Aurora MySQL (source)
+**EC2 上（Step 4～6，SSH 登录后执行）：**
+```bash
 export AURORA_HOST=<your-aurora-cluster-endpoint>
 export AURORA_USER=admin
 export AURORA_PASS=<aurora-password>
 
-# TiDB Cloud (target)
-export TIDB_HOST=<your-tidb-cloud-endpoint>      # privatelink 或 public endpoint
+export TIDB_HOST=<your-tidb-cloud-endpoint>
 export TIDB_PORT=4000
 export TIDB_USER=root
 export TIDB_PASS=<tidb-password>
 
-# OpenAI（Step 2 AI 导入博客用）
-export OPENAI_API_KEY=sk-proj-...
+# 便捷别名（Step 4～6 的命令均依赖这两个变量）
+export AURORA="mysql -u $AURORA_USER -p$AURORA_PASS -h $AURORA_HOST --ssl-mode=REQUIRED --ssl-ca=~/rds-ca.pem"
+export TIDB="mysql -u $TIDB_USER -h $TIDB_HOST -P $TIDB_PORT -p$TIDB_PASS"
 ```
+
+> 建议将以上内容追加到 EC2 的 `~/.bash_profile`，避免重新 SSH 后需要重新设置。
 
 ---
 
@@ -167,8 +172,6 @@ cat ~/aurora-dump/metadata
 ### 4.3 导入 TiDB Cloud
 
 ```bash
-TIDB="mysql -u $TIDB_USER -h $TIDB_HOST -P $TIDB_PORT -p$TIDB_PASS"
-
 $TIDB -e "CREATE DATABASE IF NOT EXISTS realworld;"
 
 for f in ~/aurora-dump/realworld.*-schema.sql; do
@@ -183,9 +186,6 @@ done
 ### 4.4 验证行数
 
 ```bash
-AURORA="mysql -u $AURORA_USER -p$AURORA_PASS -h $AURORA_HOST \
-  --ssl-mode=REQUIRED --ssl-ca=~/rds-ca.pem"
-
 for tbl in user_models article_models comment_models tag_models favorite_models follow_models; do
   a=$($AURORA realworld -N -e "SELECT COUNT(*) FROM $tbl;" 2>/dev/null)
   t=$($TIDB   realworld -N -e "SELECT COUNT(*) FROM $tbl;" 2>/dev/null)
