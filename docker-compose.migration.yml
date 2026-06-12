@@ -1,0 +1,130 @@
+version: '3.8'
+
+# Migration overlay — run alongside docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.migration.yml \
+#     up -d tidb tidb-init dm-master dm-worker dm-init
+#
+# All services share the same project network, so mysql/tidb/backend
+# can resolve each other by hostname.
+
+services:
+
+  # ── Target database ──────────────────────────────────────────────────────
+  tidb:
+    build:
+      context: .
+      dockerfile: Dockerfile.tidb
+    command: >-
+      /bin/sh -c "exec /root/.tiup/bin/tiup playground
+      ${TIDB_VERSION:-v7.5.2}
+      --host 0.0.0.0 --tag=devenv
+      --db 1 --kv 1 --pd 1 --tiflash 0"
+    ports:
+      - "4000:4000"    # MySQL protocol
+      - "10080:10080"  # TiDB HTTP status
+      - "2379:2379"    # PD / Dashboard
+    volumes:
+      - tidb_data:/tidb-data
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -P 4000 -u root --connect-timeout=3 -e 'SELECT 1' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # Creates the target schema/user on TiDB (one-shot)
+  tidb-init:
+    image: mysql:8.0
+    entrypoint:
+      - mysql
+      - -h
+      - tidb
+      - -P
+      - "4000"
+      - -u
+      - root
+      - --connect-timeout=10
+      - -e
+      - |
+        CREATE DATABASE IF NOT EXISTS realworld;
+        CREATE USER IF NOT EXISTS 'conduit'@'%' IDENTIFIED BY 'conduit';
+        GRANT ALL ON realworld.* TO 'conduit'@'%';
+    depends_on:
+      tidb:
+        condition: service_healthy
+    restart: "no"
+
+  # ── TiDB DM (Data Migration) ─────────────────────────────────────────────
+  dm-master:
+    image: pingcap/dm:v6.6.0
+    command:
+      - /dm-master
+      - --master-addr=:8261
+      - --advertise-addr=dm-master:8261
+      - --peer-urls=:8291
+      - --advertise-peer-urls=dm-master:8291
+      - --log-level=info
+      - --data-dir=/data/dm-master
+    ports:
+      - "8261:8261"
+    volumes:
+      - dm_master_data:/data/dm-master
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8261 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  dm-worker:
+    image: pingcap/dm:v6.6.0
+    command:
+      - /dm-worker
+      - --worker-addr=:8262
+      - --advertise-addr=dm-worker:8262
+      - --log-level=info
+      - --join=dm-master:8261
+      - --data-dir=/data/dm-worker
+    volumes:
+      - dm_worker_data:/data/dm-worker
+    depends_on:
+      dm-master:
+        condition: service_healthy
+
+  # Registers the MySQL source and starts the migration task (one-shot)
+  dm-init:
+    image: pingcap/dm:v6.6.0
+    entrypoint: ["/bin/sh", "/dm/init.sh"]
+    volumes:
+      - ./dm:/dm:ro
+    depends_on:
+      dm-master:
+        condition: service_healthy
+      tidb-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # ── Schema/DDL compatibility gate ────────────────────────────────────────
+  # Runs the current branch's GORM AutoMigrate against a throwaway TiDB
+  # instance. Use this before merging a feature branch (developed against
+  # MySQL/SQLite) to verify its model/DDL changes apply cleanly to TiDB.
+  #
+  #   docker compose -f docker-compose.yml -f docker-compose.migration.yml \
+  #     build backend
+  #   docker compose -f docker-compose.yml -f docker-compose.migration.yml \
+  #     run --rm tidb-schema-check
+  tidb-schema-check:
+    image: realworld-backend-backend
+    environment:
+      DB_DSN: "conduit:conduit@tcp(tidb:4000)/realworld?parseTime=true&charset=utf8mb4&loc=Local"
+      MIGRATE_ONLY: "true"
+    depends_on:
+      tidb-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+volumes:
+  tidb_data:
+  dm_master_data:
+  dm_worker_data:
