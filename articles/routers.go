@@ -20,6 +20,8 @@ func ArticlesRegister(router *gin.RouterGroup) {
 	router.DELETE("/:slug", ArticleDelete)
 	router.POST("/:slug/favorite", ArticleFavorite)
 	router.DELETE("/:slug/favorite", ArticleUnfavorite)
+	router.POST("/:slug/bookmark", ArticleBookmark)
+	router.DELETE("/:slug/bookmark", ArticleUnbookmark)
 	router.POST("/:slug/comments", ArticleCommentCreate)
 	router.DELETE("/:slug/comments/:id", ArticleCommentDelete)
 }
@@ -193,6 +195,38 @@ func ArticleUnfavorite(c *gin.Context) {
 	}
 	myUserModel := c.MustGet("my_user_model").(users.UserModel)
 	if err = articleModel.unFavoriteBy(GetArticleUserModel(myUserModel)); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, common.NewError("database", err))
+		return
+	}
+	serializer := ArticleSerializer{c, articleModel}
+	c.JSON(http.StatusOK, gin.H{"article": serializer.Response()})
+}
+
+func ArticleBookmark(c *gin.Context) {
+	slug := c.Param("slug")
+	articleModel, err := FindOneArticle(&ArticleModel{Slug: slug})
+	if err != nil {
+		c.JSON(http.StatusNotFound, common.NewError("article", errors.New("not found")))
+		return
+	}
+	myUserModel := c.MustGet("my_user_model").(users.UserModel)
+	if err = articleModel.bookmarkBy(GetArticleUserModel(myUserModel)); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, common.NewError("database", err))
+		return
+	}
+	serializer := ArticleSerializer{c, articleModel}
+	c.JSON(http.StatusOK, gin.H{"article": serializer.Response()})
+}
+
+func ArticleUnbookmark(c *gin.Context) {
+	slug := c.Param("slug")
+	articleModel, err := FindOneArticle(&ArticleModel{Slug: slug})
+	if err != nil {
+		c.JSON(http.StatusNotFound, common.NewError("article", errors.New("not found")))
+		return
+	}
+	myUserModel := c.MustGet("my_user_model").(users.UserModel)
+	if err = articleModel.unBookmarkBy(GetArticleUserModel(myUserModel)); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, common.NewError("database", err))
 		return
 	}

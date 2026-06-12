@@ -36,6 +36,14 @@ type FavoriteModel struct {
 	FavoriteByID uint
 }
 
+type BookmarkModel struct {
+	gorm.Model
+	Article        ArticleModel
+	ArticleID      uint
+	BookmarkedBy   ArticleUserModel
+	BookmarkedByID uint
+}
+
 type TagModel struct {
 	gorm.Model
 	Tag           string         `gorm:"uniqueIndex;size:100"`
@@ -138,6 +146,22 @@ func (article ArticleModel) favoriteBy(user ArticleUserModel) error {
 func (article ArticleModel) unFavoriteBy(user ArticleUserModel) error {
 	db := common.GetDB()
 	err := db.Where("favorite_id = ? AND favorite_by_id = ?", article.ID, user.ID).Delete(&FavoriteModel{}).Error
+	return err
+}
+
+func (article ArticleModel) bookmarkBy(user ArticleUserModel) error {
+	db := common.GetDB()
+	var bookmark BookmarkModel
+	err := db.FirstOrCreate(&bookmark, &BookmarkModel{
+		ArticleID:      article.ID,
+		BookmarkedByID: user.ID,
+	}).Error
+	return err
+}
+
+func (article ArticleModel) unBookmarkBy(user ArticleUserModel) error {
+	db := common.GetDB()
+	err := db.Where("article_id = ? AND bookmarked_by_id = ?", article.ID, user.ID).Delete(&BookmarkModel{}).Error
 	return err
 }
 

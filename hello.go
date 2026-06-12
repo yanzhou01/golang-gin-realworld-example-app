@@ -21,6 +21,7 @@ func Migrate(db *gorm.DB) {
 	db.AutoMigrate(&articles.FavoriteModel{})
 	db.AutoMigrate(&articles.ArticleUserModel{})
 	db.AutoMigrate(&articles.CommentModel{})
+	db.AutoMigrate(&articles.BookmarkModel{}) //new bookmark
 }
 
 func main() {
@@ -32,6 +33,14 @@ func main() {
 		log.Println("failed to get sql.DB:", err)
 	} else {
 		defer sqlDB.Close()
+	}
+
+	// MIGRATE_ONLY runs AutoMigrate against DB_DSN and exits, without starting
+	// the HTTP server. Used to verify that the current models' DDL applies
+	// cleanly to a target database (e.g. TiDB) before merging a feature branch.
+	if os.Getenv("MIGRATE_ONLY") == "true" {
+		log.Println("MIGRATE_ONLY set: schema migration complete, exiting")
+		return
 	}
 
 	r := gin.Default()
