@@ -1,0 +1,11 @@
+source-id: "aurora-realworld"
+flavor: "mysql"
+enable-gtid: false
+
+from:
+  host: "<AURORA_HOST>"
+  port: 3306
+  user: "<AURORA_USER>"
+  password: "<AURORA_PASS>"
+  security:
+    ssl-ca: "/home/ec2-user/rds-ca.pem"
